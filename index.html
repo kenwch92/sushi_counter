@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>迴轉壽司計數機</title>
+    <style>
+        /* --- 基礎設定 --- */
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        /* --- 頂部固定欄 --- */
+        .header-bar {
+            position: sticky; top: 0; width: 100%; 
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid #dee2e6;
+            z-index: 900;
+            display: flex; justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .header-content {
+            width: 100%; max-width: 1200px; padding: 12px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .header-left { display: flex; flex-direction: column; gap: 2px; }
+        .header-desc { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 2px; }
+        .totals-stack { display: flex; flex-direction: column; gap: 2px; }
+        .title-line { font-size: 1.3rem; font-weight: 800; color: #222; display: flex; align-items: center; line-height: 1.1; }
+        .val-highlight { color: #2196F3; margin-left: 10px; }
+        .val-alt { color: #673ab7; margin-left: 10px; }
+        .perc-indicator { font-size: 0.8rem; color: #999; font-weight: 600; margin-left: 8px; }
+
+        /* --- 懸浮按鈕 --- */
+        .floating-actions {
+            position: fixed; top: 12px; right: 20px;
+            display: flex; gap: 12px; z-index: 1001;
+        }
+        .btn-config-float, .btn-clear-float {
+            padding: 10px 18px; border-radius: 50px; cursor: pointer;
+            font-weight: bold; transition: 0.3s;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15); display: flex;
+            align-items: center; justify-content: center; gap: 8px;
+            background-color: #ffffff;
+            border: 3px solid;
+        }
+        .btn-config-float { border-color: #222222; color: #222222; }
+        .btn-clear-float { border-color: #ffa502; color: #ffa502; }
+
+        @media (max-width: 600px) {
+            .btn-config-float, .btn-clear-float { width: 50px; height: 50px; padding: 0; border-radius: 50%; }
+            .text-label { display: none; }
+        }
+
+        /* --- 主計數卡片 --- */
+        .main-container { width: 100%; max-width: 1200px; padding: 25px 20px 100px 20px; box-sizing: border-box; }
+        .calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; width: 100%; }
+        
+        .card { 
+            position: relative; border-radius: 16px; padding: 15px; 
+            border-top: 10px solid; background: white; 
+            box-shadow: 0 6px 12px rgba(0,0,0,0.04); transition: 0.2s;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .card-content { flex-grow: 1; text-align: center; }
+        .card-label { font-size: 0.75rem; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+        .stat-line { font-size: 1.6rem; font-weight: 800; color: #333; margin-bottom: 2px; }
+        .subtotal-line { 
+            font-size: 1.4rem; font-weight: 900; border-top: 1px solid rgba(0,0,0,0.08); 
+            padding-top: 10px; margin-top: 6px; -webkit-text-stroke: 0.5px #303030;
+        }
+
+        .btn-ctrl { 
+            width: 52px; height: 52px; font-size: 1.8rem; cursor: pointer; 
+            border: 2px solid #222; background: #ffffff; color: #222; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; font-weight: 600;
+        }
+
+        /* --- 設定視窗 --- */
+        #config-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); display: none; justify-content: center; align-items: center; z-index: 2000;
+        }
+        .menu-box { background: white; width: 95%; max-width: 1000px; max-height: 85vh; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; }
+        .menu-header { padding: 18px 25px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .menu-scroll-area { padding: 20px 25px; overflow-y: auto; flex-grow: 1; }
+        .settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        
+        .config-card { 
+            border: 1px solid #e0e0e0; border-left: 12px solid; padding: 15px; border-radius: 12px; position: relative; 
+            display: flex; align-items: center; gap: 12px; background: white; touch-action: pan-y;
+        }
+        .config-card.dragging { opacity: 0.3; }
+        .drag-handle { cursor: grab; color: #ccc; font-size: 1.4rem; padding: 10px; touch-action: none; }
+        
+        .text-input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        .btn-add { background: #2ecc71; color: white; border: none; padding: 14px; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 25px; width: 100%; }
+        .btn-reset { background: #ff4757; } 
+        .btn-close { background: #222; }
+        .btn-reset, .btn-close { padding: 10px 15px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; }
+        .btn-delete { background: #ff4757; color: white; border: none; width: 22px; height: 22px; border-radius: 50%; position: absolute; top: -10px; right: -10px; cursor: pointer; }
+        
+        .drag-ghost { position: fixed; pointer-events: none; z-index: 9999; opacity: 0.9; box-shadow: 0 15px 30px rgba(0,0,0,0.3); border-radius: 12px; }
+    </style>
+</head>
+<body>
+
+    <div class="floating-actions">
+        <button class="btn-clear-float" onclick="clearCounts()"><span>🗑️</span><div class="text-label">清空碟數</div></button>
+        <button class="btn-config-float" onclick="document.getElementById('config-overlay').style.display='flex'"><span>⚙️</span><div class="text-label">設定</div></button>
+    </div>
+
+    <header class="header-bar">
+        <div class="header-content">
+            <div class="header-left">
+                <div class="header-desc">迴轉壽司計數機</div>
+                <div class="totals-stack">
+                    <div class="title-line">碟數: <span id="sum-dish" class="val-alt">0</span></div>
+                    <div class="title-line">總額: <span id="grand-total" class="val-highlight">0</span> <span id="perc-tag" class="perc-indicator"></span></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container"><div id="calc-grid" class="calc-grid"></div></div>
+
+    <div id="config-overlay" onclick="if(event.target===this) this.style.display='none'">
+        <div class="menu-box">
+            <div class="menu-header">
+                <h2 style="margin:0; font-size: 1.3rem;">後台設定</h2>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-reset" onclick="resetAll()">恢復預設</button>
+                    <button class="btn-close" onclick="document.getElementById('config-overlay').style.display='none'">關閉</button>
+                </div>
+            </div>
+            <div class="menu-scroll-area" id="modal-scroll">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 12px; border-radius: 10px; margin-bottom: 20px;">
+                    <div>服務費 (%): <input type="number" id="global-perc-input" class="text-input" style="width: 70px; margin-left:10px;" oninput="updateGlobalPerc(this.value)"></div>
+                    <span>項目總數: <strong id="config-count">0</strong></span>
+                </div>
+                <div id="settings-panel" class="settings-grid"></div>
+                <button class="btn-add" onclick="addNewCalc()">+ 新增項目</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = "sushi_calculator_data";
+        const initialDefaults = [
+            { name: "紅碟", dish: 0, price: 12, color: "#AE303A" },
+            { name: "銀碟", dish: 0, price: 17, color: "#DCDEDB" },
+            { name: "金碟", dish: 0, price: 22, color: "#E1C268" },
+            { name: "黑碟", dish: 0, price: 27, color: "#0F0A08" }
+        ];
+
+        let state = { calcs: [], globalPerc: 10 };
+        let draggedIndex = null;
+        let scrollInterval = null;
+
+        function saveState() { 
+            localStorage.clear(); 
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); 
+        }
+
+        function initData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) { state = JSON.parse(saved); } 
+            else { state.calcs = initialDefaults.map(item => ({ ...item })); state.globalPerc = 10; }
+            document.getElementById('global-perc-input').value = state.globalPerc;
+        }
+
+        function getLightColor(hex) { return hex + "12"; }
+
+        function initSettingsUI() {
+            const panel = document.getElementById('settings-panel');
+            panel.innerHTML = '';
+            document.getElementById('config-count').innerText = state.calcs.length;
+            
+            state.calcs.forEach((item, i) => {
+                const config = document.createElement('div');
+                config.className = 'config-card';
+                config.id = `config-item-${i}`;
+                config.style.borderLeftColor = item.color;
+                config.style.backgroundColor = getLightColor(item.color);
+                
+                config.innerHTML = `
+                    <div style="flex-grow:1;">
+                        <div style="margin-bottom:6px;">
+                            <label style="font-size:0.65rem; font-weight:bold; color:#888;">名稱</label>
+                            <input type="text" class="text-input" value="${item.name}" oninput="updateName(${i}, this.value)">
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <div style="flex:1;"><label style="font-size:0.65rem; font-weight:bold; color:#888;">價錢</label><input type="number" class="text-input" value="${item.price}" oninput="updatePrice(${i}, this.value)"></div>
+                            <div style="width:45px;"><label style="font-size:0.65rem; font-weight:bold; color:#888;">顏色</label>
+                            <input type="color" value="${item.color}" oninput="updateColorUI(${i}, this.value)" style="width:100%; border:none; height:32px; cursor:pointer; background:none; padding:0;"></div>
+                        </div>
+                    </div>
+                    <div class="drag-handle" draggable="true" onmousedown="draggedIndex=${i}" ontouchstart="enableTouchDrag(event, ${i})">☰</div>
+                    <button class="btn-delete" onclick="removeCalc(${i})">✕</button>
+                `;
+
+                const handle = config.querySelector('.drag-handle');
+                handle.ondragstart = (e) => { draggedIndex = i; config.classList.add('dragging'); };
+                handle.ondragend = () => config.classList.remove('dragging');
+                config.ondragover = (e) => e.preventDefault();
+                config.ondrop = (e) => { e.preventDefault(); reorder(draggedIndex, i); };
+                panel.appendChild(config);
+            });
+        }
+
+        // 優化：只更新顏色相關樣式，不重繪整個 UI 列表，防止 Color Picker 關閉
+        window.updateColorUI = (i, val) => { 
+            state.calcs[i].color = val; 
+            const card = document.getElementById(`config-item-${i}`);
+            if(card) {
+                card.style.borderLeftColor = val;
+                card.style.backgroundColor = getLightColor(val);
+            }
+            renderCalculators(); 
+        };
+
+        function enableTouchDrag(e, index) {
+            const el = document.getElementById(`config-item-${index}`);
+            const scrollArea = document.getElementById('modal-scroll');
+            const panel = document.getElementById('settings-panel');
+            const touch = e.touches[0];
+            const elRect = el.getBoundingClientRect();
+            const offsetX = touch.clientX - elRect.left;
+            const offsetY = touch.clientY - elRect.top;
+            const ghost = el.cloneNode(true);
+            ghost.classList.add('drag-ghost');
+            ghost.style.width = elRect.width + 'px';
+            document.body.appendChild(ghost);
+            el.classList.add('dragging');
+            scrollArea.style.overflow = 'hidden';
+            draggedIndex = index;
+
+            const onTouchMove = (event) => {
+                const t = event.touches[0];
+                ghost.style.left = (t.clientX - offsetX) + 'px';
+                ghost.style.top = (t.clientY - offsetY) + 'px';
+                const areaRect = scrollArea.getBoundingClientRect();
+                clearInterval(scrollInterval);
+                if (t.clientY < areaRect.top + 100) scrollInterval = setInterval(() => { scrollArea.scrollTop -= 5; }, 16);
+                else if (t.clientY > areaRect.bottom - 100) scrollInterval = setInterval(() => { scrollArea.scrollTop += 5; }, 16);
+                const targetEl = document.elementFromPoint(t.clientX, t.clientY);
+                const closestCard = targetEl?.closest('.config-card');
+                if (closestCard && closestCard !== el) {
+                    const targetIdx = Array.from(panel.children).indexOf(closestCard);
+                    if (targetIdx !== -1) reorder(draggedIndex, targetIdx, false);
+                }
+            };
+
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+            document.ontouchend = () => {
+                clearInterval(scrollInterval);
+                document.removeEventListener('touchmove', onTouchMove);
+                ghost.remove();
+                el.classList.remove('dragging');
+                scrollArea.style.overflow = 'auto';
+                initSettingsUI();
+            };
+        }
+
+        function reorder(from, to, refreshUI = true) {
+            if (from === null || from === to) return;
+            const temp = state.calcs.splice(from, 1)[0];
+            state.calcs.splice(to, 0, temp);
+            draggedIndex = to;
+            if (refreshUI) initSettingsUI();
+            renderCalculators();
+        }
+
+        function renderCalculators() {
+            const grid = document.getElementById('calc-grid');
+            grid.innerHTML = '';
+            let baseSum = 0, totalDishes = 0;
+            state.calcs.forEach((item, i) => {
+                const subtotal = item.dish * item.price;
+                baseSum += subtotal; totalDishes += item.dish;
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.style.borderTopColor = item.color;
+                card.style.backgroundColor = getLightColor(item.color);
+                card.innerHTML = `
+                    <button class="btn-ctrl" onclick="changeDish(${i},-1)">−</button>
+                    <div class="card-content">
+                        <div class="card-label">${item.name}</div>
+                        <div class="stat-line">${item.dish} <span style="font-weight:300; color:#ccc; margin:0 5px;">|</span> $${item.price}</div>
+                        <div class="subtotal-line" style="color:${item.color}">$${subtotal.toLocaleString()}</div>
+                    </div>
+                    <button class="btn-ctrl" onclick="changeDish(${i},1)">+</button>`;
+                grid.appendChild(card);
+            });
+            const finalTotal = baseSum * (1 + (state.globalPerc / 100));
+            document.getElementById('grand-total').innerText = finalTotal.toLocaleString(undefined, { maximumFractionDigits: 1 });
+            document.getElementById('sum-dish').innerText = totalDishes.toLocaleString();
+            document.getElementById('perc-tag').innerText = `(+${state.globalPerc}%)`;
+            saveState();
+        }
+
+        window.updateName = (i, v) => { state.calcs[i].name = v; renderCalculators(); };
+        window.updatePrice = (i, v) => { state.calcs[i].price = parseFloat(v) || 0; renderCalculators(); };
+        window.updateGlobalPerc = (val) => { state.globalPerc = parseFloat(val) || 0; renderCalculators(); };
+        window.changeDish = (i, dir) => { state.calcs[i].dish = Math.max(0, state.calcs[i].dish + dir); renderCalculators(); };
+        window.addNewCalc = () => { state.calcs.push({ name: "新項目", dish: 0, price: 0, color: "#95a5a6" }); initSettingsUI(); renderCalculators(); };
+        window.removeCalc = (i) => { if(confirm("確定刪除此項目？")) { state.calcs.splice(i, 1); initSettingsUI(); renderCalculators(); }};
+        window.clearCounts = () => { if(confirm("確定要清空所有碟數嗎？")) { state.calcs.forEach(c => c.dish = 0); renderCalculators(); }};
+        window.resetAll = () => { if(confirm("確定要恢復預設嗎？所有自訂項目將會消失。")) { state.calcs = initialDefaults.map(item => ({ ...item })); state.globalPerc = 10; initSettingsUI(); renderCalculators(); }};
+
+        initData();
+        initSettingsUI();
+        renderCalculators();
+    </script>
+</body>
+</html>
