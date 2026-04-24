@@ -4,279 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>迴轉壽司計數機</title>
-    
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="manifest" href="data:application/manifest+json, %7B%22name%22%3A%22%E8%BF%B4%E8%BD%89%E5%A3%BD%E5%8F%B8%E8%A8%88%E6%95%B8%E6%A9%9F%22%2C%22short_name%22%3A%22%E5%A3%BD%E5%8F%B8%E8%A8%88%E6%95%B8%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f0f2f5%22%2C%22theme_color%22%3A%22%232196F3%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fcdn-icons-png.flaticon.com%2F512%2F2252%2F2252062.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
-
-    <style>
-        /* --- 基礎設定 --- */
-        html { scroll-behavior: smooth; }
-        body {
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-            background-color: #f0f2f5; margin: 0; padding: 0;
-            display: flex; flex-direction: column; align-items: center;
-            -webkit-user-select: none; /* 防止長按選取 */
-            -webkit-tap-highlight-color: transparent; /* 移除點擊藍影 */
-        }
-        input { -webkit-user-select: text; }
-
-        /* --- 頂部固定欄 --- */
-        .header-bar {
-            position: sticky; top: 0; width: 100%; background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px); border-bottom: 2px solid #dee2e6; z-index: 900;
-            display: flex; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-        .header-content { width: 100%; max-width: 1200px; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .header-left { display: flex; flex-direction: column; gap: 2px; }
-        .header-desc { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
-        .title-line { font-size: 1.3rem; font-weight: 800; color: #222; display: flex; align-items: center; line-height: 1.2; }
-        #sum-dish { color: #673ab7; margin-left: 10px; }
-        #grand-total { color: #2196F3; margin-left: 10px; }
-        .perc-indicator { font-size: 0.8rem; color: #999; margin-left: 8px; }
-
-        /* --- 懸浮按鈕 (圖標加大版) --- */
-        .floating-actions { position: fixed; top: 12px; right: 20px; display: flex; gap: 12px; z-index: 1001; }
-        .btn-float {
-            padding: 10px 18px; border-radius: 50px; cursor: pointer; font-weight: bold;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            background: white; border: 3px solid; transition: 0.2s; box-shadow: 0 6px 16px rgba(0,0,0,0.15);
-        }
-        .btn-float span { font-size: 1.4rem; } /* 加大 Emoji */
-        .btn-clear-float { border-color: #ffa502; color: #ffa502; }
-        .btn-config-float { border-color: #222; color: #222; }
-
-        @media (max-width: 600px) {
-            .btn-float { width: 55px; height: 55px; padding: 0; border-radius: 50%; }
-            .text-label { display: none; }
-        }
-
-        /* --- 主計數卡片 --- */
-        .main-container { width: 100%; max-width: 1200px; padding: 25px 20px 100px 20px; box-sizing: border-box; }
-        .calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
-        .card { 
-            border-radius: 16px; padding: 15px; border-top: 10px solid; background: white; 
-            box-shadow: 0 6px 12px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between;
-        }
-        .card-content { flex-grow: 1; text-align: center; }
-        .card-label { font-size: 0.75rem; font-weight: 700; color: #888; text-transform: uppercase; }
-        .stat-line { font-size: 1.6rem; font-weight: 800; color: #333; }
-        .subtotal-line { font-size: 1.4rem; font-weight: 900; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 10px; margin-top: 6px; }
-        .btn-ctrl { width: 52px; height: 52px; font-size: 1.8rem; cursor: pointer; border: 2px solid #222; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-
-        /* --- 設定視窗 --- */
-        #config-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 2000; }
-        .menu-box { background: white; width: 95%; max-width: 800px; max-height: 85vh; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; }
-        .menu-header { padding: 18px 25px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .menu-scroll-area { padding: 20px; overflow-y: auto; flex-grow: 1; }
-        .config-card { border: 1px solid #e0e0e0; border-left: 12px solid; padding: 12px; border-radius: 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; background: white; position: relative; }
-        .text-input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
-        .btn-add { background: #2ecc71; color: white; border: none; padding: 14px; border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
-        .btn-action { padding: 8px 15px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; }
-        .drag-handle { cursor: grab; color: #ccc; font-size: 1.4rem; padding: 5px; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="floating-actions">
-        <button class="btn-float btn-clear-float" onclick="clearCounts()"><span>🗑️</span><div class="text-label">清空碟數</div></button>
-        <button class="btn-float btn-config-float" onclick="openConfig()"><span>⚙️</span><div class="text-label">設定</div></button>
+        <button class="btn-clear-float" onclick="clearCounts()"><span>🗑️</span><div class="text-label">清空碟數</div></button>
+        <button class="btn-config-float" onclick="document.getElementById('config-overlay').style.display='flex'"><span>⚙️</span><div class="text-label">設定</div></button>
     </div>
 
     <header class="header-bar">
         <div class="header-content">
             <div class="header-left">
                 <div class="header-desc">迴轉壽司計數機</div>
-                <div class="title-line">碟數: <span id="sum-dish">0</span></div>
-                <div class="title-line">總額: <span id="grand-total">0</span> <span id="perc-tag" class="perc-indicator"></span></div>
+                <div class="totals-stack">
+                    <div class="title-line">碟數: <span id="sum-dish" class="val-alt">0</span></div>
+                    <div class="title-line">總額: <span id="grand-total" class="val-highlight">0</span> <span id="perc-tag" class="perc-indicator"></span></div>
+                </div>
             </div>
         </div>
     </header>
 
     <div class="main-container"><div id="calc-grid" class="calc-grid"></div></div>
 
-    <div id="config-overlay" onclick="if(event.target===this) closeConfig()">
+    <div id="config-overlay" onclick="if(event.target===this) this.style.display='none'">
         <div class="menu-box">
             <div class="menu-header">
-                <h2 style="margin:0;">後台設定</h2>
-                <div style="display:flex; gap:8px;">
-                    <button class="btn-action" style="background:#ff4757;" onclick="resetAll()">恢復預設</button>
-                    <button class="btn-action" style="background:#222;" onclick="closeConfig()">關閉</button>
+                <h2 style="margin:0; font-size: 1.3rem;">後台設定</h2>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-reset" onclick="resetAll()">恢復預設</button>
+                    <button class="btn-close" onclick="document.getElementById('config-overlay').style.display='none'">關閉</button>
                 </div>
             </div>
-            <div class="menu-scroll-area">
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:12px; border-radius:10px; margin-bottom:15px;">
-                    <div>服務費 (%): <input type="number" id="global-perc-input" class="text-input" style="width:60px;" oninput="updateGlobalPerc(this.value)"></div>
-                    <span>項目: <strong id="config-count">0</strong></span>
+            <div class="menu-scroll-area" id="modal-scroll">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 12px; border-radius: 10px; margin-bottom: 20px;">
+                    <div>服務費 (%): <input type="number" id="global-perc-input" class="text-input" style="width: 70px; margin-left:10px;" oninput="updateGlobalPerc(this.value)"></div>
+                    <span>項目總數: <strong id="config-count">0</strong></span>
                 </div>
-                <div id="settings-panel"></div>
-                <button class="btn-add" onclick="addNewCalc()">+ 新增碟類</button>
+                <div id="settings-panel" class="settings-grid"></div>
+                <button class="btn-add" onclick="addNewCalc()">+ 新增項目</button>
             </div>
         </div>
     </div>
 
-    <script>
-        const STORAGE_KEY = "sushi_calculator_pwa_v1";
-        const initialDefaults = [
-            { name: "紅碟", dish: 0, price: 12, color: "#AE303A" },
-            { name: "銀碟", dish: 0, price: 17, color: "#DCDEDB" },
-            { name: "金碟", dish: 0, price: 22, color: "#E1C268" },
-            { name: "黑碟", dish: 0, price: 27, color: "#0F0A08" }
-        ];
-
-        let state = { calcs: [], globalPerc: 10 };
-
-        function save() { 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); 
-        }
-
-        function init() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            state = saved ? JSON.parse(saved) : { calcs: initialDefaults.map(d => ({...d})), globalPerc: 10 };
-            document.getElementById('global-perc-input').value = state.globalPerc;
-            render();
-        }
-
-        function getLight(hex) { return hex + "12"; }
-
-        function render() {
-            const grid = document.getElementById('calc-grid');
-            grid.innerHTML = '';
-            let total = 0, count = 0;
-
-            state.calcs.forEach((item, i) => {
-                const sub = item.dish * item.price;
-                total += sub; count += item.dish;
-                const div = document.createElement('div');
-                div.className = 'card';
-                div.style.borderTopColor = item.color;
-                div.style.backgroundColor = getLight(item.color);
-                div.innerHTML = `
-                    <button class="btn-ctrl" onclick="changeDish(${i},-1)">−</button>
-                    <div class="card-content">
-                        <div class="card-label">${item.name}</div>
-                        <div class="stat-line">${item.dish} <small style="font-size:0.8rem; color:#999;">($${item.price})</small></div>
-                        <div class="subtotal-line" style="color:${item.color}">$${sub.toLocaleString()}</div>
-                    </div>
-                    <button class="btn-ctrl" onclick="changeDish(${i},1)">+</button>
-                `;
-                grid.appendChild(div);
-            });
-
-            document.getElementById('sum-dish').innerText = count;
-            document.getElementById('grand-total').innerText = (total * (1 + state.globalPerc/100)).toLocaleString(undefined, {maximumFractionDigits:1});
-            document.getElementById('perc-tag').innerText = `(+${state.globalPerc}%)`;
-            save();
-        }
-
-        // 設定頁面邏輯
-        function openConfig() {
-            document.getElementById('config-overlay').style.display = 'flex';
-            const panel = document.getElementById('settings-panel');
-            panel.innerHTML = '';
-            document.getElementById('config-count').innerText = state.calcs.length;
-
-            state.calcs.forEach((item, i) => {
-                const div = document.createElement('div');
-                div.className = 'config-card';
-                div.style.borderLeftColor = item.color;
-                div.style.backgroundColor = getLight(item.color);
-                div.innerHTML = `
-                    <div style="flex-grow:1;">
-                        <input type="text" class="text-input" value="${item.name}" oninput="state.calcs[${i}].name=this.value;render()" style="margin-bottom:5px;">
-                        <div style="display:flex; gap:5px;">
-                            <input type="number" class="text-input" value="${item.price}" oninput="state.calcs[${i}].price=Number(this.value);render()">
-                            <input type="color" value="${item.color}" oninput="updateColor(${i}, this.value)" style="width:40px; height:36px; border:none; background:none; padding:0;">
-                        </div>
-                    </div>
-                    <button onclick="remove(${i})" style="background:#ff4757; color:white; border:none; border-radius:5px; padding:5px 10px;">✕</button>
-                `;
-                panel.appendChild(div);
-            });
-        }
-
-        window.updateColor = (i, val) => { state.calcs[i].color = val; render(); openConfig(); };
-        window.changeDish = (i, d) => { state.calcs[i].dish = Math.max(0, state.calcs[i].dish + d); render(); };
-        window.updateGlobalPerc = (v) => { state.globalPerc = Number(v) || 0; render(); };
-        window.addNewCalc = () => { state.calcs.push({name:"新碟", dish:0, price:0, color:"#95a5a6"}); render(); openConfig(); };
-        window.remove = (i) => { if(confirm("刪除此項？")) { state.calcs.splice(i,1); render(); openConfig(); }};
-        window.clearCounts = () => { if(confirm("清空所有碟數？")) { state.calcs.forEach(c => c.dish=0); render(); }};
-        window.resetAll = () => { if(confirm("恢復預設？")) { localStorage.clear(); location.reload(); }};
-        window.closeConfig = () => document.getElementById('config-overlay').style.display='none';
-
-        // 註冊 Service Worker (內嵌式離線支援)
-        if ('serviceWorker' in navigator) {
-            const swCode = `
-                const CACHE = 'sushi-cache-v1';
-                self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.add('./'))));
-                self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
-            `;
-            const blob = new Blob([swCode], {type: 'application/javascript'});
-            navigator.serviceWorker.register(URL.createObjectURL(blob));
-        }
-
-        init();
-    // --- 「按兩次返回鍵退出」邏輯 ---
-let backPressCount = 0;
-let backTimer = null;
-
-// 初始化：向歷史紀錄推入一個新的狀態，這樣當使用者按返回鍵時，會觸發 popstate 事件
-function initBackHandler() {
-    window.history.pushState({ page: 'main' }, '', '');
-}
-
-window.addEventListener('popstate', function (event) {
-    // 檢查是否是在設定視窗開啟狀態
-    const overlay = document.getElementById('config-overlay');
-    if (overlay.style.display === 'flex') {
-        closeConfig();
-        // 關閉視窗後，重新推入狀態，防止直接退出
-        window.history.pushState({ page: 'main' }, '', '');
-        return;
-    }
-
-    // 處理退出確認
-    backPressCount++;
-    if (backPressCount === 1) {
-        // 彈出一個簡單的自定義提示（或使用 Toast 樣式）
-        showToast("再按一次返回鍵以退出");
-
-        // 如果 2 秒內沒按第二次，則重置計數
-        backTimer = setTimeout(() => {
-            backPressCount = 0;
-            // 重新推入狀態
-            window.history.pushState({ page: 'main' }, '', '');
-        }, 2000);
-    } else if (backPressCount === 2) {
-        // 使用者點擊了第二次返回，此時不再推入狀態，瀏覽器會正常返回上一頁（即退出 App 模式）
-        backPressCount = 0;
-        clearTimeout(backTimer);
-        // 在 PWA 模式下，這會回到桌面或瀏覽器主頁
-        window.history.back();
-    }
-});
-
-// 簡單的提示訊息功能
-function showToast(message) {
-    let toast = document.getElementById('exit-toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'exit-toast';
-        toast.style.cssText = `
-            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.7); color: white; padding: 10px 20px;
-            border-radius: 25px; font-size: 14px; z-index: 10000;
-            transition: opacity 0.3s; pointer-events: none;
-        `;
-        document.body.appendChild(toast);
-    }
-    toast.innerText = message;
-    toast.style.opacity = '1';
-    setTimeout(() => { toast.style.opacity = '0'; }, 1500);
-}
-
-// 啟動攔截
-initBackHandler();
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
